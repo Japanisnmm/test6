@@ -23,12 +23,13 @@ import { cn } from "@/lib/utils";
 import { tv, type VariantProps } from "tailwind-variants";
 import { Button } from "../ui/button";
 import { Calendar as CalendarPrimitive, type Matcher } from "../ui/calendar";
-import { RiCalendar2Fill, RiSubtractFill } from "@remixicon/react";
+import { RiArrowDownSLine, RiSubtractFill } from "@remixicon/react";
 import { format, type Locale } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { useTimeFieldState } from "@react-stately/datepicker";
 import * as PopoverPrimitives from "@radix-ui/react-popover";
 import { Time } from "@internationalized/date";
+import { EventIcon } from "../icons/EventIcon";
 
 //type and interface
 type TimeSegmentProps = {
@@ -77,6 +78,7 @@ interface ITriggerProps
   extends ComponentProps<"button">,
     VariantProps<typeof triggerStyles> {
   placeholder?: string;
+  isOpen?: boolean;
 }
 
 interface IPreset {
@@ -111,19 +113,13 @@ interface IPickerProps extends CalendarProps {
   "aria-required"?: boolean;
 }
 
-interface ISingleProps extends Omit<IPickerProps, "translations"> {
-  presets?: IDatePreset[];
-  defaultValue?: Date;
-  value?: Date;
-  onChange?: (date: Date | undefined) => void;
-  translations?: Omit<Translations, "range">;
-}
-
 interface IRangeProps extends IPickerProps {
   presets?: IDateRangePreset[];
   defaultValue?: DateRange;
   value?: DateRange;
   onChange?: (dateRange: DateRange | undefined) => void;
+  onBlur?: () => void;
+  name?: string;
 }
 
 //Region Style
@@ -155,25 +151,30 @@ export const focusRing = [
 const triggerStyles = tv({
   base: [
     // base
-    "peer flex w-full cursor-pointer appearance-none items-center gap-x-2 truncate rounded-md border px-3 py-2 shadow-xs outline-hidden transition-all sm:text-sm",
+    "flex items-center overflow-hidden",
+    "rounded-xl",
+    // dimensions
+    "w-[214px] h-8",
+    // padding
+    "px-2 py-3",
+    // gap
+    "gap-1",
+    // text size
+    "text-sm",
     // background color
-    "bg-white dark:bg-gray-950",
+    "bg-[#ECFBFA] dark:bg-gray-950",
     // border color
-    "border-gray-300 dark:border-gray-800",
+    "border border-[#00918A]",
     // text color
-    "text-gray-900 dark:text-gray-50",
+    "text-[#00918A]",
     // placeholder color
-    "placeholder-gray-400 dark:placeholder-gray-500",
+    "placeholder-[#00918A]",
     // hover
-    "hover:bg-gray-50 dark:hover:bg-gray-950/50",
+    "hover:bg-[#ECFBFA] dark:hover:bg-gray-950/50",
     // disabled
     "disabled:pointer-events-none",
     "disabled:bg-gray-100 disabled:text-gray-400",
     "dark:disabled:border-gray-800 dark:disabled:bg-gray-800 dark:disabled:text-gray-500",
-    // focus
-    focusInput,
-    // invalid (optional)
-    // "dark:aria-invalid:ring-red-400/20 aria-invalid:ring-2 aria-invalid:ring-red-200 aria-invalid:border-red-500 invalid:ring-2 invalid:ring-red-200 invalid:border-red-500"
   ],
   variants: {
     hasError: {
@@ -281,7 +282,14 @@ TimeInput.displayName = "TimeInput";
 // Region Trigger
 const Trigger = forwardRef<HTMLButtonElement, ITriggerProps>(
   (
-    { className, children, placeholder, hasError, ...props }: ITriggerProps,
+    {
+      className,
+      children,
+      placeholder,
+      hasError,
+      isOpen,
+      ...props
+    }: ITriggerProps,
     forwardedRef
   ) => {
     return (
@@ -291,16 +299,21 @@ const Trigger = forwardRef<HTMLButtonElement, ITriggerProps>(
           className={cn(triggerStyles({ hasError }), className)}
           {...props}
         >
-          <RiCalendar2Fill className="size-5 shrink-0 text-gray-400 dark:text-gray-600" />
-          <span className="flex-1 overflow-hidden text-left text-ellipsis whitespace-nowrap text-gray-900 dark:text-gray-50">
+          <EventIcon width={20} height={20} />
+          <span className="flex-1 overflow-hidden text-left text-ellipsis whitespace-nowrap text-[#00918A] text-sm font-semibold">
             {children ? (
               children
             ) : placeholder ? (
-              <span className="text-gray-400 dark:text-gray-600">
-                {placeholder}
-              </span>
+              <span className="text-[#00918A]">{placeholder}</span>
             ) : null}
           </span>
+          <RiArrowDownSLine
+            className={cn(
+              "size-5 text-[#00918A] transition-transform duration-200",
+              isOpen && "rotate-180"
+            )}
+            aria-hidden="true"
+          />
         </button>
       </PopoverPrimitives.Trigger>
     );
@@ -428,38 +441,40 @@ const PresetContainer = <TPreset extends IPreset, TValue>({
   };
 
   return (
-    <ul className="flex items-start gap-x-2 sm:flex-col">
-      {presets.map((preset) => {
-        return (
-          <li key={`preset-${preset.label}`} className="sm:w-full sm:py-px">
-            <button
-              type="button"
-              title={preset.label}
-              className={cn(
-                // base
-                "relative w-full overflow-hidden rounded-sm border px-2.5 py-1.5 text-left text-base text-ellipsis whitespace-nowrap shadow-xs outline-hidden transition-all sm:border-none sm:py-2 sm:text-sm sm:shadow-none",
-                // text color
-                "text-gray-700 dark:text-gray-300",
-                // border color
-                "border-gray-200 dark:border-gray-800",
-                // focus
-                focusRing,
-                // background color
-                "focus-visible:bg-gray-100 dark:focus-visible:bg-gray-900",
-                "hover:bg-gray-100 dark:hover:bg-gray-900",
-                {
-                  "bg-gray-100 dark:bg-gray-900": matchesCurrent(preset),
-                }
-              )}
-              onClick={() => handleClick(preset)}
-              aria-label={`Select ${preset.label}`}
-            >
-              <span>{preset.label}</span>
-            </button>
-          </li>
-        );
-      })}
-    </ul>
+    <div>
+      <h2 className="px-2.5 py-1.5 text-[#00746E] font-bold">เลือกวัน</h2>
+      <ul className="flex items-start gap-x-2 sm:flex-col">
+        {presets.map((preset) => {
+          return (
+            <li key={`preset-${preset.label}`} className="sm:w-full sm:py-px">
+              <button
+                type="button"
+                title={preset.label}
+                className={cn(
+                  // base
+                  "relative w-full overflow-hidden rounded-sm border px-2.5 py-1.5 text-left text-base text-ellipsis whitespace-nowrap shadow-xs outline-hidden transition-all sm:border-none sm:py-2 sm:text-sm sm:shadow-none",
+                  // text color
+                  "text-gray-700 dark:text-gray-300",
+                  // border color
+                  "border-gray-200 dark:border-gray-800",
+                  // focus
+                  focusRing,
+                  // background color
+
+                  {
+                    "text-[#00918A] text-base": matchesCurrent(preset),
+                  }
+                )}
+                onClick={() => handleClick(preset)}
+                aria-label={`Select ${preset.label}`}
+              >
+                <span>{preset.label}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 };
 
@@ -472,237 +487,28 @@ const formatDate = (
   includeTime?: boolean
 ): string => {
   const usesAmPm = !isBrowserLocaleClockType24h();
+  const buddhistYear = (date.getFullYear() + 543).toString().slice(-2);
+
   let dateString: string;
 
   if (includeTime) {
-    dateString = usesAmPm
-      ? format(date, "dd MMM, yyyy h:mm a", { locale })
-      : format(date, "dd MMM, yyyy HH:mm", { locale });
+    const timeFormat = usesAmPm ? "h:mm a" : "HH:mm";
+    const dayMonth = format(date, "dd MMM", { locale });
+    dateString = `${dayMonth}, ${buddhistYear} ${format(date, timeFormat, {
+      locale,
+    })}`;
   } else {
-    dateString = format(date, "dd MMM, yyyy", { locale });
+    const dayMonth = format(date, "dd MMM", { locale });
+    dateString = `${dayMonth} ${buddhistYear}`;
   }
 
   return dateString;
 };
 
-//Region Single Date
-const SingleDatePicker = ({
-  defaultValue,
-  value,
-  onChange,
-  presets,
-  disabled,
-  disabledDays,
-  disableNavigation,
-  className,
-  showTimePicker,
-  placeholder = "Select date",
-  hasError,
-  translations,
-  enableYearNavigation = false,
-  locale = enUS,
-  align = "center",
-  ...props
-}: ISingleProps) => {
-  const [open, setOpen] = useState(false);
-  const [date, setDate] = useState<Date | undefined>(
-    value ?? defaultValue ?? undefined
-  );
-  const [month, setMonth] = useState<Date | undefined>(date);
-
-  const [time, setTime] = useState<TimeValue | null>(
-    value
-      ? new Time(value.getHours(), value.getMinutes())
-      : defaultValue
-      ? new Time(defaultValue.getHours(), defaultValue.getMinutes())
-      : new Time(0, 0)
-  );
-
-  const initialDate = useMemo(() => {
-    return date;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  useEffect(() => {
-    setDate(value ?? defaultValue ?? undefined);
-  }, [value, defaultValue]);
-
-  useEffect(() => {
-    if (date) {
-      setMonth(date);
-    }
-  }, [date]);
-
-  useEffect(() => {
-    if (!open) {
-      setMonth(date);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  const onCancel = () => {
-    setDate(initialDate);
-    setTime(
-      initialDate
-        ? new Time(initialDate.getHours(), initialDate.getMinutes())
-        : new Time(0, 0)
-    );
-    setOpen(false);
-  };
-
-  const onOpenChange = (open: boolean) => {
-    if (!open) {
-      onCancel();
-    }
-
-    setOpen(open);
-  };
-
-  const onDateChange = (date: Date | undefined) => {
-    const newDate = date;
-    if (showTimePicker) {
-      if (newDate && !time) {
-        setTime(new Time(0, 0));
-      }
-      if (newDate && time) {
-        newDate.setHours(time.hour);
-        newDate.setMinutes(time.minute);
-      }
-    }
-    setDate(newDate);
-  };
-
-  const onTimeChange = (time: TimeValue | null) => {
-    setTime(time);
-
-    if (!date) {
-      return;
-    }
-
-    const newDate = new Date(date.getTime());
-
-    if (!time) {
-      newDate.setHours(0);
-      newDate.setMinutes(0);
-    } else {
-      newDate.setHours(time.hour);
-      newDate.setMinutes(time.minute);
-    }
-
-    setDate(newDate);
-  };
-
-  const formattedDate = useMemo(() => {
-    if (!date) {
-      return null;
-    }
-
-    return formatDate(date, locale, showTimePicker);
-  }, [date, locale, showTimePicker]);
-
-  const onApply = () => {
-    setOpen(false);
-    onChange?.(date);
-  };
-
-  useEffect(() => {
-    setDate(value ?? defaultValue ?? undefined);
-    setTime(
-      value
-        ? new Time(value.getHours(), value.getMinutes())
-        : defaultValue
-        ? new Time(defaultValue.getHours(), defaultValue.getMinutes())
-        : new Time(0, 0)
-    );
-  }, [value, defaultValue]);
-
-  return (
-    <PopoverPrimitives.Root
-      tremor-id="tremor-raw"
-      open={open}
-      onOpenChange={onOpenChange}
-    >
-      <Trigger
-        placeholder={placeholder}
-        disabled={disabled}
-        className={className}
-        hasError={hasError}
-        aria-required={props.required || props["aria-required"]}
-        aria-invalid={props["aria-invalid"]}
-        aria-label={props["aria-label"]}
-        aria-labelledby={props["aria-labelledby"]}
-      >
-        {formattedDate}
-      </Trigger>
-      <CalendarPopover align={align}>
-        <div className="flex">
-          <div className="flex flex-col sm:flex-row sm:items-start">
-            {presets && presets.length > 0 && (
-              <div
-                className={cn(
-                  "relative flex h-14 w-full items-center sm:h-full sm:w-40",
-                  "border-b border-gray-200 sm:border-r sm:border-b-0 dark:border-gray-800",
-                  "overflow-auto"
-                )}
-              >
-                <div className="absolute px-2 pr-2 sm:inset-0 sm:left-0 sm:py-2">
-                  <PresetContainer
-                    currentValue={date}
-                    presets={presets}
-                    onSelect={onDateChange}
-                  />
-                </div>
-              </div>
-            )}
-            <div>
-              <CalendarPrimitive
-                mode="single"
-                month={month}
-                onMonthChange={setMonth}
-                selected={date}
-                onSelect={onDateChange}
-                disabled={disabledDays}
-                locale={locale}
-                enableYearNavigation={enableYearNavigation}
-                disableNavigation={disableNavigation}
-                initialFocus
-                {...props}
-              />
-              {showTimePicker && (
-                <div className="border-t border-gray-200 p-3 dark:border-gray-800">
-                  <TimeInput
-                    aria-label="Time"
-                    onChange={onTimeChange}
-                    isDisabled={!date}
-                    value={time}
-                    isRequired={props.required}
-                  />
-                </div>
-              )}
-              <div className="flex items-center gap-x-2 border-t border-gray-200 p-3 dark:border-gray-800">
-                <Button
-                  variant="secondary"
-                  className="h-8 w-full"
-                  type="button"
-                  onClick={onCancel}
-                >
-                  {translations?.cancel ?? "Cancel"}
-                </Button>
-                <Button
-                  variant="default"
-                  className="h-8 w-full"
-                  type="button"
-                  onClick={onApply}
-                >
-                  {translations?.apply ?? "Apply"}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </CalendarPopover>
-    </PopoverPrimitives.Root>
-  );
+const formatInputDate = (date: Date, locale: Locale): string => {
+  const buddhistYear = date.getFullYear() + 543;
+  const dayMonth = format(date, "d MMM", { locale });
+  return `${dayMonth} ${buddhistYear}`;
 };
 
 //Region Range date
@@ -710,6 +516,8 @@ const RangeDatePicker = ({
   defaultValue,
   value,
   onChange,
+  onBlur,
+  name,
   presets,
   disabled,
   disableNavigation,
@@ -717,7 +525,7 @@ const RangeDatePicker = ({
   enableYearNavigation = false,
   locale = enUS,
   showTimePicker,
-  placeholder = "Select date range",
+  placeholder,
   hasError,
   translations,
   align = "center",
@@ -726,9 +534,27 @@ const RangeDatePicker = ({
 }: IRangeProps) => {
   const [open, setOpen] = useState(false);
   const [range, setRange] = useState<DateRange | undefined>(
-    value ?? defaultValue ?? undefined
+    value ?? defaultValue
   );
-  const [month, setMonth] = useState<Date | undefined>(range?.from);
+  const [month, setMonth] = useState<Date | undefined>(() => {
+    const currentDate = range?.from || new Date();
+    const previousMonth = new Date(currentDate);
+    previousMonth.setMonth(previousMonth.getMonth() - 1);
+    return previousMonth;
+  });
+  const [hasUserSelectedRange, setHasUserSelectedRange] = useState(false);
+  const [editMode, setEditMode] = useState<"none" | "start" | "end">("none");
+  const [tempRange, setTempRange] = useState<DateRange | undefined>(range);
+  const [isSelectingEndDate, setIsSelectingEndDate] = useState(false);
+  const [startInputValue, setStartInputValue] = useState<Date | undefined>(
+    () => {
+      return range?.from;
+    }
+  );
+
+  const [endInputValue, setEndInputValue] = useState<Date | undefined>(() => {
+    return range?.to;
+  });
 
   const [startTime, setStartTime] = useState<TimeValue | null>(
     value?.from
@@ -745,30 +571,272 @@ const RangeDatePicker = ({
       : new Time(0, 0)
   );
 
-  const initialRange = useMemo(() => {
-    return range;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  const combinedDisabledDays = useMemo(() => {
+    const disabledMatchers: Matcher[] = [];
+
+    if (disabledDays) {
+      if (Array.isArray(disabledDays)) {
+        disabledMatchers.push(...disabledDays);
+      } else {
+        disabledMatchers.push(disabledDays);
+      }
+    }
+
+    if (editMode === "none" && hasUserSelectedRange && !isSelectingEndDate) {
+      disabledMatchers.push({
+        before: new Date(9999, 11, 31), // Disable ทุกวัน
+      });
+    }
+
+    if (editMode === "end" && tempRange?.from) {
+      disabledMatchers.push({
+        before: tempRange.from,
+      });
+    }
+
+    return disabledMatchers;
+  }, [
+    disabledDays,
+    tempRange?.from,
+    editMode,
+    hasUserSelectedRange,
+    isSelectingEndDate,
+  ]);
 
   useEffect(() => {
-    setRange(value ?? defaultValue ?? undefined);
+    setRange(value ?? defaultValue);
+    setTempRange(value ?? defaultValue);
+
+    setStartTime(
+      value?.from
+        ? new Time(value.from.getHours(), value.from.getMinutes())
+        : defaultValue?.from
+        ? new Time(defaultValue.from.getHours(), defaultValue.from.getMinutes())
+        : new Time(0, 0)
+    );
+    setEndTime(
+      value?.to
+        ? new Time(value.to.getHours(), value.to.getMinutes())
+        : defaultValue?.to
+        ? new Time(defaultValue.to.getHours(), defaultValue.to.getMinutes())
+        : new Time(0, 0)
+    );
+    setStartInputValue(value?.from ?? defaultValue?.from);
+    setEndInputValue(value?.to ?? defaultValue?.to);
   }, [value, defaultValue]);
 
-  useEffect(() => {
-    if (range) {
-      setMonth(range.from);
+  const setMonthToPreviousMonth = (date: Date | undefined) => {
+    if (date) {
+      const previousMonth = new Date(date);
+      previousMonth.setMonth(previousMonth.getMonth() - 1);
+      setMonth(previousMonth);
     }
-  }, [range]);
+  };
 
   useEffect(() => {
     if (!open) {
-      setMonth(range?.from);
+      if (range?.from) {
+        setMonthToPreviousMonth(range.from);
+      } else {
+        const currentDate = new Date();
+        currentDate.setMonth(currentDate.getMonth() - 1);
+        setMonth(currentDate);
+      }
+      setEditMode("none");
+    } else {
+      setStartInputValue(range?.from);
+      setEndInputValue(range?.to);
+      setTempRange(range);
+      setHasUserSelectedRange(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+  const onRangeChange = (newRange: DateRange | undefined) => {
+    if (editMode === "start") {
+      if (!newRange) {
+        setEditMode("end");
+        setIsSelectingEndDate(false);
+        if (range?.to) {
+          setMonthToPreviousMonth(range.to);
+        }
+        return;
+      }
 
-  const onRangeChange = (range: DateRange | undefined) => {
-    const newRange = range;
+      const isFromSameAsCurrentStart =
+        range?.from &&
+        newRange.from &&
+        newRange.from.getDate() === range.from.getDate() &&
+        newRange.from.getMonth() === range.from.getMonth() &&
+        newRange.from.getFullYear() === range.from.getFullYear();
+
+      const selectedDate = isFromSameAsCurrentStart
+        ? newRange.to
+        : newRange.from;
+
+      if (selectedDate) {
+        const newEndDate =
+          range?.to && selectedDate > range.to ? selectedDate : range?.to;
+
+        const updatedRange = {
+          from: selectedDate,
+          to: newEndDate,
+        };
+
+        setRange(updatedRange);
+        setTempRange(updatedRange);
+        setStartInputValue(selectedDate);
+        setEndInputValue(newEndDate);
+        setIsSelectingEndDate(false);
+        setEditMode("end");
+
+        if (newEndDate) {
+          setMonthToPreviousMonth(newEndDate);
+        }
+        return;
+      }
+    }
+
+    if (editMode === "end") {
+      if (!newRange) {
+        const updatedRange = {
+          from: tempRange?.from || range?.from,
+          to: tempRange?.from || range?.from,
+        };
+
+        setRange(updatedRange);
+        setTempRange(updatedRange);
+        setEndInputValue(tempRange?.from || range?.from);
+        setIsSelectingEndDate(false);
+        setEditMode("none");
+        return;
+      }
+
+      const selectedDate = newRange.to || newRange.from;
+
+      if (selectedDate) {
+        const updatedRange = {
+          from: tempRange?.from || range?.from,
+          to: selectedDate,
+        };
+        setRange(updatedRange);
+        setTempRange(updatedRange);
+        setEndInputValue(selectedDate);
+        setIsSelectingEndDate(false);
+        setEditMode("none");
+        return;
+      }
+    }
+
+    if (editMode === "none" && isSelectingEndDate) {
+      if (!newRange) {
+        const updatedRange = {
+          from: range?.from,
+          to: range?.from,
+        };
+
+        setRange(updatedRange);
+        setTempRange(updatedRange);
+        setEndInputValue(range?.from);
+        setIsSelectingEndDate(false);
+        setHasUserSelectedRange(true);
+        return;
+      }
+
+      const isSameDay =
+        range?.from &&
+        newRange.to &&
+        newRange.to.getDate() === range.from.getDate() &&
+        newRange.to.getMonth() === range.from.getMonth() &&
+        newRange.to.getFullYear() === range.from.getFullYear();
+
+      if (isSameDay) {
+        const updatedRange = {
+          from: range.from,
+          to: newRange.to,
+        };
+
+        setRange(updatedRange);
+        setTempRange(updatedRange);
+        setEndInputValue(newRange.to);
+        setIsSelectingEndDate(false);
+        setHasUserSelectedRange(true);
+        return;
+      }
+
+      const selectedEndDate = newRange.to || newRange.from;
+
+      const updatedRange = {
+        from: range?.from,
+        to: selectedEndDate,
+      };
+
+      setRange(updatedRange);
+      setTempRange(updatedRange);
+      setEndInputValue(selectedEndDate);
+      setIsSelectingEndDate(false);
+      setHasUserSelectedRange(true);
+      return;
+    }
+
+    if (!newRange) return;
+
+    if (
+      editMode === "none" &&
+      !isSelectingEndDate &&
+      !hasUserSelectedRange &&
+      newRange?.from
+    ) {
+      const isSameDay =
+        newRange.from &&
+        newRange.to &&
+        newRange.from.getDate() === newRange.to.getDate() &&
+        newRange.from.getMonth() === newRange.to.getMonth() &&
+        newRange.from.getFullYear() === newRange.to.getFullYear();
+
+      if (isSameDay) {
+        const updatedRange = {
+          from: newRange.from,
+          to: newRange.to,
+        };
+
+        setRange(updatedRange);
+        setTempRange(updatedRange);
+        setStartInputValue(newRange.from);
+        setEndInputValue(newRange.to);
+        setHasUserSelectedRange(true);
+        setIsSelectingEndDate(false);
+
+        return;
+      }
+
+      const isClickingInsideExistingRange =
+        range?.from &&
+        newRange.from &&
+        newRange.from.getTime() === range.from.getTime() &&
+        newRange.to;
+
+      const startDate = isClickingInsideExistingRange
+        ? newRange.to!
+        : newRange.from;
+
+      const today = new Date();
+
+      const updatedRange = {
+        from: startDate,
+        to: today,
+      };
+
+      setRange(updatedRange);
+      setTempRange(updatedRange);
+      setStartInputValue(startDate);
+      setEndInputValue(today);
+      setHasUserSelectedRange(true);
+      setIsSelectingEndDate(true);
+      setMonthToPreviousMonth(today);
+
+      return;
+    }
+
     if (showTimePicker) {
       if (newRange?.from && !startTime) {
         setStartTime(new Time(0, 0));
@@ -790,21 +858,11 @@ const RangeDatePicker = ({
     }
 
     setRange(newRange);
-  };
-
-  const onCancel = () => {
-    setRange(initialRange);
-    setStartTime(
-      initialRange?.from
-        ? new Time(initialRange.from.getHours(), initialRange.from.getMinutes())
-        : new Time(0, 0)
-    );
-    setEndTime(
-      initialRange?.to
-        ? new Time(initialRange.to.getHours(), initialRange.to.getMinutes())
-        : new Time(0, 0)
-    );
-    setOpen(false);
+    setTempRange(newRange);
+    setStartInputValue(newRange.from);
+    setEndInputValue(newRange.to);
+    setHasUserSelectedRange(true);
+    setIsSelectingEndDate(false);
   };
 
   const onOpenChange = (open: boolean) => {
@@ -872,55 +930,122 @@ const RangeDatePicker = ({
     }
   };
 
-  useEffect(() => {
-    setRange(value ?? defaultValue ?? undefined);
-
-    setStartTime(
-      value?.from
-        ? new Time(value.from.getHours(), value.from.getMinutes())
-        : defaultValue?.from
-        ? new Time(defaultValue.from.getHours(), defaultValue.from.getMinutes())
-        : new Time(0, 0)
-    );
-    setEndTime(
-      value?.to
-        ? new Time(value.to.getHours(), value.to.getMinutes())
-        : defaultValue?.to
-        ? new Time(defaultValue.to.getHours(), defaultValue.to.getMinutes())
-        : new Time(0, 0)
-    );
-  }, [value, defaultValue]);
-
   const displayRange = useMemo(() => {
-    if (!range) {
+    const rangeToDisplay = editMode !== "none" ? tempRange : range;
+    if (!rangeToDisplay) {
       return null;
     }
 
     return `${
-      range.from ? formatDate(range.from, locale, showTimePicker) : ""
-    } - ${range.to ? formatDate(range.to, locale, showTimePicker) : ""}`;
-  }, [range, locale, showTimePicker]);
+      rangeToDisplay.from
+        ? formatDate(rangeToDisplay.from, locale, showTimePicker)
+        : ""
+    } - ${
+      rangeToDisplay.to
+        ? formatDate(rangeToDisplay.to, locale, showTimePicker)
+        : ""
+    }`;
+  }, [range, tempRange, editMode, locale, showTimePicker]);
 
   const onApply = () => {
+    const finalRange = editMode !== "none" ? tempRange : range;
+    setRange(finalRange);
+    setTempRange(finalRange);
+    setStartInputValue(finalRange?.from);
+    setEndInputValue(finalRange?.to);
+    setEditMode("none");
+    setIsSelectingEndDate(false);
     setOpen(false);
-    onChange?.(range);
+    onChange?.(finalRange);
+    onBlur?.();
   };
 
+  const onCancel = () => {
+    setRange(defaultValue);
+    setTempRange(defaultValue);
+    setStartInputValue(defaultValue?.from);
+    setEndInputValue(defaultValue?.to);
+    setStartTime(
+      defaultValue?.from
+        ? new Time(defaultValue.from.getHours(), defaultValue.from.getMinutes())
+        : new Time(0, 0)
+    );
+    setEndTime(
+      defaultValue?.to
+        ? new Time(defaultValue.to.getHours(), defaultValue.to.getMinutes())
+        : new Time(0, 0)
+    );
+    setEditMode("none");
+    setIsSelectingEndDate(false);
+    setHasUserSelectedRange(false);
+    setOpen(false);
+    onBlur?.();
+  };
+
+  const onReset = () => {
+    setRange(defaultValue);
+    setTempRange(defaultValue);
+    setStartInputValue(defaultValue?.from);
+    setEndInputValue(defaultValue?.to);
+    setEditMode("none");
+    setHasUserSelectedRange(false);
+    setIsSelectingEndDate(false);
+    setMonthToPreviousMonth(defaultValue?.from);
+  };
+
+  const onStartDateClick = () => {
+    setEditMode("start");
+    setTempRange(range);
+    setIsSelectingEndDate(false);
+    if (range?.from) {
+      setMonthToPreviousMonth(range.from);
+    }
+  };
+
+  const onEndDateClick = () => {
+    setEditMode("end");
+    setTempRange(range);
+    setIsSelectingEndDate(false);
+    if (range?.to) {
+      setMonthToPreviousMonth(range.to);
+    }
+  };
+
+  const defaultPlaceholder = useMemo(() => {
+    if (!defaultValue?.from || !defaultValue?.to) {
+      return "";
+    }
+    const formattedStart = formatDate(defaultValue.from, locale);
+    const formattedEnd = formatDate(defaultValue.to, locale);
+    return `${formattedStart} - ${formattedEnd}`;
+  }, [defaultValue, locale]);
+
+  const setMonthByRange = (fromDate: Date, toDate: Date) => {
+    const monthsDiff =
+      (toDate.getFullYear() - fromDate.getFullYear()) * 12 +
+      (toDate.getMonth() - fromDate.getMonth());
+
+    if (monthsDiff >= 1) {
+      setMonth(new Date(fromDate));
+    } else {
+      setMonthToPreviousMonth(fromDate);
+    }
+  };
+  const finalPlaceholder = placeholder ?? defaultPlaceholder;
+
   return (
-    <PopoverPrimitives.Root
-      tremor-id="tremor-raw"
-      open={open}
-      onOpenChange={onOpenChange}
-    >
+    <PopoverPrimitives.Root open={open} onOpenChange={onOpenChange}>
       <Trigger
-        placeholder={placeholder}
+        placeholder={finalPlaceholder}
         disabled={disabled}
         className={className}
         hasError={hasError}
+        isOpen={open}
         aria-required={props.required || props["aria-required"]}
         aria-invalid={props["aria-invalid"]}
         aria-label={props["aria-label"]}
         aria-labelledby={props["aria-labelledby"]}
+        name={name}
       >
         {displayRange}
       </Trigger>
@@ -931,7 +1056,6 @@ const RangeDatePicker = ({
               <div
                 className={cn(
                   "relative flex h-16 w-full items-center sm:h-full sm:w-40",
-                  "border-b border-gray-200 sm:border-r sm:border-b-0 dark:border-gray-800",
                   "overflow-auto"
                 )}
               >
@@ -939,27 +1063,94 @@ const RangeDatePicker = ({
                   <PresetContainer
                     currentValue={range}
                     presets={presets}
-                    onSelect={onRangeChange}
+                    onSelect={(newRange) => {
+                      setRange(newRange);
+                      setTempRange(newRange);
+                      setStartInputValue(newRange?.from);
+                      setEndInputValue(newRange?.to);
+                      setEditMode("start");
+                      setHasUserSelectedRange(true);
+                      setIsSelectingEndDate(false);
+                      if (newRange?.from && newRange?.to) {
+                        setMonthByRange(newRange.from, newRange.to);
+                      }
+                    }}
                   />
                 </div>
               </div>
             )}
             <div className="overflow-x-auto">
+              <div className="flex items-center gap-2 p-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    "h-10 flex-1 text-sm rounded-xl justify-between bg-white hover:bg-white !border-[#000000]",
+                    editMode === "start"
+                      ? " !border-[#000000]"
+                      : editMode === "none" &&
+                        !hasUserSelectedRange &&
+                        !isSelectingEndDate
+                      ? " !border-[#000000]"
+                      : " !border-[#CFD3D2]"
+                  )}
+                  onClick={onStartDateClick}
+                >
+                  <span className="text-gray-900">
+                    {(editMode !== "none" ? tempRange?.from : startInputValue)
+                      ? formatInputDate(
+                          (editMode !== "none"
+                            ? tempRange?.from
+                            : startInputValue)!,
+                          locale
+                        )
+                      : defaultValue?.from
+                      ? formatInputDate(defaultValue.from, locale)
+                      : ""}
+                  </span>
+                  <EventIcon width={24} height={24} color="black" />
+                </Button>
+                <span className="mx-2 text-black">&rarr;</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    "h-10 flex-1 text-sm rounded-xl justify-between bg-white hover:bg-white",
+                    editMode === "end" || isSelectingEndDate
+                      ? " !border-[#000000]"
+                      : " !border-[#CFD3D2]"
+                  )}
+                  onClick={onEndDateClick}
+                >
+                  <span className="text-gray-900">
+                    {(editMode !== "none" ? tempRange?.to : endInputValue)
+                      ? formatInputDate(
+                          (editMode !== "none"
+                            ? tempRange?.to
+                            : endInputValue)!,
+                          locale
+                        )
+                      : defaultValue?.to
+                      ? formatInputDate(defaultValue.to, locale)
+                      : ""}
+                  </span>
+                  <EventIcon width={24} height={24} color="black" />
+                </Button>
+              </div>
               <CalendarPrimitive
                 mode="range"
-                selected={range}
+                selected={editMode !== "none" ? tempRange : range}
                 onSelect={onRangeChange}
                 month={month}
                 onMonthChange={setMonth}
                 numberOfMonths={2}
-                disabled={disabledDays}
+                disabled={combinedDisabledDays}
                 disableNavigation={disableNavigation}
                 enableYearNavigation={enableYearNavigation}
                 locale={locale}
                 initialFocus
                 classNames={{
-                  months:
-                    "flex flex-row divide-x divide-gray-200 dark:divide-gray-800 overflow-x-auto",
+                  months: "flex flex-row overflow-x-auto",
                 }}
                 {...props}
               />
@@ -992,17 +1183,19 @@ const RangeDatePicker = ({
                   </div>
                 </div>
               )}
-              <div className="border-t border-gray-200 p-3 sm:flex sm:items-center sm:justify-between dark:border-gray-800">
-                <p className="text-gray-900 tabular-nums dark:text-gray-50">
-                  <span className="text-gray-700 dark:text-gray-300">
-                    {translations?.range ?? "Range"}:
-                  </span>{" "}
-                  <span className="font-medium">{displayRange}</span>
-                </p>
+              <div className=" p-3 sm:flex sm:items-center sm:justify-end">
                 <div className="mt-2 flex items-center gap-x-2 sm:mt-0">
                   <Button
-                    variant="secondary"
-                    className="h-8 w-full sm:w-fit"
+                    variant="ghost"
+                    className="h-10 w-[72px] rounded-[8px] text-[#00918A] font-semibold sm:w-fit"
+                    type="button"
+                    onClick={onReset}
+                  >
+                    {translations?.reset ?? "Clear"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-10 w-[72px] rounded-[8px] border-[#CFD3D2] sm:w-fit"
                     type="button"
                     onClick={onCancel}
                   >
@@ -1010,7 +1203,7 @@ const RangeDatePicker = ({
                   </Button>
                   <Button
                     variant="default"
-                    className="h-8 w-full sm:w-fit"
+                    className="h-10 w-[72px] rounded-[8px] sm:w-fit"
                     type="button"
                     onClick={onApply}
                   >
@@ -1168,29 +1361,13 @@ const validatePresets = (
   }
 };
 
-//Region Types & exports
-type SingleDatePickerProps = {
-  presets?: IDatePreset[];
-  defaultValue?: Date;
-  value?: Date;
-  onChange?: (date: Date | undefined) => void;
-} & IPickerProps;
-
-const DatePicker = ({ presets, ...props }: SingleDatePickerProps) => {
-  if (presets) {
-    validatePresets(presets, props);
-  }
-
-  return <SingleDatePicker presets={presets} {...(props as ISingleProps)} />;
-};
-
-DatePicker.displayName = "DatePicker";
-
 type RangeDatePickerProps = {
   presets?: IDateRangePreset[];
   defaultValue?: DateRange;
   value?: DateRange;
   onChange?: (dateRange: DateRange | undefined) => void;
+  onBlur?: () => void;
+  name?: string;
 } & IPickerProps;
 
 const DateRangePicker = ({ presets, ...props }: RangeDatePickerProps) => {
@@ -1204,7 +1381,6 @@ const DateRangePicker = ({ presets, ...props }: RangeDatePickerProps) => {
 DateRangePicker.displayName = "DateRangePicker";
 
 export {
-  DatePicker,
   DateRangePicker,
   type IDatePreset,
   type IDateRangePreset,

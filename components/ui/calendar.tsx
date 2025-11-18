@@ -20,7 +20,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { focusRing } from "../CalendarPicker.tsx/CalendarPicker";
-import { forwardRef, useRef } from "react";
+import { forwardRef, useRef, useState } from "react";
 
 interface NavigationButtonProps
   extends React.HTMLAttributes<HTMLButtonElement> {
@@ -41,19 +41,15 @@ const NavigationButton = forwardRef<HTMLButtonElement, NavigationButtonProps>(
         type="button"
         disabled={disabled}
         className={cn(
-          "flex size-8 shrink-0 select-none items-center justify-center rounded-sm border p-1 outline-hidden transition sm:size-[30px]",
+          "flex size-8 shrink-0 select-none items-center justify-center rounded-sm p-1 outline-hidden transition sm:size-[30px]",
           // text color
           "text-gray-600 hover:text-gray-800",
           "dark:text-gray-400 dark:hover:text-gray-200",
-          // border color
-          "border-gray-300 dark:border-gray-800",
           // background color
-          "hover:bg-gray-50 active:bg-gray-100",
           "dark:hover:bg-gray-900 dark:active:bg-gray-800",
           // disabled
           "disabled:pointer-events-none",
-          "disabled:border-gray-200 dark:disabled:border-gray-800",
-          "disabled:text-gray-400 dark:disabled:text-gray-600",
+          "disabled:text-gray-400",
           focusRing
         )}
         onClick={onClick}
@@ -119,27 +115,36 @@ const Calendar = ({
           "text-gray-900 dark:text-gray-50"
         ),
         day: cn(
-          "size-9 rounded-sm text-sm focus:z-10",
+          "size-10 rounded-full text-sm focus:z-10",
           "text-gray-900 dark:text-gray-50",
-          "hover:bg-gray-200 dark:hover:bg-gray-700",
+          "disabled:cursor-not-allowed",
+          "transition-colors duration-150",
           focusRing
         ),
-        day_today: "font-semibold",
+        day_today: cn(
+          "font-semibold",
+          "border-2 border-[#00918A]",
+          "bg-white dark:bg-white",
+          "text-gray-900"
+        ),
         day_selected: cn(
           "rounded-sm",
-          "aria-selected:bg-blue-500 aria-selected:text-white",
-          "dark:aria-selected:bg-blue-500 dark:aria-selected:text-white"
+          "aria-selected:bg-[#00918A] aria-selected:text-white",
+          "dark:aria-selected:bg-blue-500 dark:aria-selected:text-white",
+          "aria-selected:disabled:hover:bg-[#00918A] aria-selected:disabled:hover:text-white",
+          "dark:aria-selected:disabled:hover:bg-blue-500 dark:aria-selected:disabled:hover:text-white",
+          "aria-selected:disabled:pointer-events-none"
         ),
         day_disabled:
-          "text-gray-300! dark:text-gray-700! line-through disabled:hover:bg-transparent",
+          "text-[#B5BAB9] hover:bg-transparent! dark:hover:bg-transparent! cursor-not-allowed pointer-events-none",
         day_outside: "text-gray-400 dark:text-gray-600",
         day_range_middle: cn(
           "rounded-none!",
-          "aria-selected:bg-gray-100! aria-selected:text-gray-900!",
+          "aria-selected:bg-[#ECFBFA] aria-selected:text-[#00918A]",
           "dark:aria-selected:bg-gray-900! dark:aria-selected:text-gray-50!"
         ),
-        day_range_start: "rounded-r-none rounded-l!",
-        day_range_end: "rounded-l-none rounded-r!",
+        day_range_start: "rounded-full ",
+        day_range_end: "rounded-full",
         day_hidden: "invisible",
         ...classNames,
       }}
@@ -189,6 +194,9 @@ const Calendar = ({
             }
           };
 
+          const buddhistYear = props.displayMonth.getFullYear() + 543;
+          const monthName = format(props.displayMonth, "LLLL", { locale });
+
           return (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
@@ -221,7 +229,7 @@ const Calendar = ({
                 aria-live="polite"
                 className="text-sm font-medium capitalize tabular-nums text-gray-900 dark:text-gray-50"
               >
-                {format(props.displayMonth, "LLLL yyy", { locale })}
+                {monthName} {buddhistYear}
               </div>
 
               <div className="flex items-center gap-1">
@@ -260,7 +268,14 @@ const Calendar = ({
               buttonRef as React.RefObject<HTMLButtonElement>
             );
 
-          const { selected, today, disabled, range_middle } = activeModifiers;
+          const {
+            selected,
+            today,
+            disabled,
+            range_middle,
+            range_start,
+            range_end,
+          } = activeModifiers;
 
           if (isHidden) {
             return <></>;
@@ -284,30 +299,37 @@ const Calendar = ({
             ...buttonPropsRest
           } = buttonProps;
 
+          const isSingleDay = range_start && range_end;
+
           return (
-            <button
-              ref={buttonRef}
-              {...buttonPropsRest}
-              type="button"
-              className={cn("relative", buttonClassName)}
-            >
-              {buttonChildren}
-              {today && (
-                <span
-                  className={cn(
-                    "absolute inset-x-1/2 bottom-1.5 h-0.5 w-4 -translate-x-1/2 rounded-[2px]",
-                    {
-                      "bg-blue-500 dark:bg-blue-500": !selected,
-                      "bg-white! dark:bg-gray-950!": selected,
-                      "bg-gray-400! dark:bg-gray-600!":
-                        selected && range_middle,
-                      "bg-gray-400 text-gray-400 dark:bg-gray-400 dark:text-gray-600":
-                        disabled,
-                    }
-                  )}
-                />
+            <div className="relative flex items-center justify-center">
+              {range_start && !isSingleDay && (
+                <div className="absolute inset-y-0 right-0 w-1/2 bg-[#ECFBFA] -z-10" />
               )}
-            </button>
+              {range_end && !isSingleDay && (
+                <div className="absolute inset-y-0 left-0 w-1/2 bg-[#ECFBFA] -z-10" />
+              )}
+              <button
+                ref={buttonRef}
+                {...buttonPropsRest}
+                type="button"
+                className={cn("relative", buttonClassName)}
+              >
+                {buttonChildren}
+                {today && !disabled && (
+                  <span
+                    className={cn(
+                      "absolute inset-x-1/2 bottom-1.5 h-0.5 w-4 -translate-x-1/2 rounded-[2px]",
+                      {
+                        "bg-white! dark:bg-gray-950!": selected,
+                        "bg-gray-400! dark:bg-gray-600!":
+                          selected && range_middle,
+                      }
+                    )}
+                  />
+                )}
+              </button>
+            </div>
           );
         },
       }}
