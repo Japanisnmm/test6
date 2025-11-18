@@ -24,11 +24,15 @@ const Home = () => {
     };
   };
 
-  const { control, handleSubmit, watch } = useForm<FormData>({
+  const { control, handleSubmit, watch, setValue } = useForm<FormData>({
     defaultValues: {
-      dateRange: getDefaultRange(),
+      dateRange: undefined, 
     },
   });
+
+  useEffect(() => {
+    setValue("dateRange", getDefaultRange());
+  }, [setValue]);
 
   const formatDateRange = (dateRange: DateRange | undefined) => {
     if (!dateRange) return null;
