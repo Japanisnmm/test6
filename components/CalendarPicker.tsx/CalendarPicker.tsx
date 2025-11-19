@@ -991,6 +991,7 @@ const RangeDatePicker = ({
     setHasUserSelectedRange(false);
     setIsSelectingEndDate(false);
     setMonthToPreviousMonth(defaultValue?.from);
+    onChange?.(defaultValue);
   };
 
   const onStartDateClick = () => {
@@ -998,7 +999,7 @@ const RangeDatePicker = ({
     setTempRange(range);
     setIsSelectingEndDate(false);
     if (range?.from) {
-      setMonthToPreviousMonth(range.from);
+      setMonth(range.from);
     }
   };
 
